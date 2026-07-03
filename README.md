@@ -6,7 +6,7 @@ A Proportional-Integral-Derivative Algorithm can be used in controllers to minim
 
 <img width="397" height="214" alt="image" src="https://github.com/user-attachments/assets/d91bf206-2f75-4440-b236-87e77090f019" />
 
-There are many applications for the PID controller, but its used most often in regulation. For example, the current goal for my PID is to simply regulate water temperature using a probe and heating rod.
+There are many applications for the PID controller, but it's used most often in regulation. For example, the current goal for my PID is to simply regulate water temperature using a probe and heating rod.
 
 ### Walking 100 meters; example
 So imagine you need to walk forward 100 meters for a sobriety test (**that is one demanding cop!**). Of course, you're sober, but the cop is having a bad night so he demands you walk exactly 100 meters. You only pass if you stop within 0.1 meters of the goal. If you think about it, this is a clever test, because drunk people do not understand control systems! Another rule: **you cannot stop until you're done, reverse, or speed up after slowing down!** This'll come into play in a second.
