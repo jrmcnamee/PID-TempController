@@ -4,7 +4,7 @@ Lab project to control the temperature of water using an Arduino and a PID algor
 ## Proportional-Integral-Derivative Algorithms
 A Proportional-Integral-Derivative Algorithm can be used in controllers to minimize the difference betweent the output and the desired state of the system. A PID is a classic closed-loop feedback system, meaning it takes an input and then systematically compares current state to its input over time. The image below shows a simple version of a closed loop system. The PID is simple and easy to implement, making it an attractive choice for many automated processes.
 
-<img width="397" height="214" alt="image" src="https://github.com/user-attachments/assets/d91bf206-2f75-4440-b236-87e77090f019" />
+<img align="center" width="397" height="214" alt="image" src="https://github.com/user-attachments/assets/d91bf206-2f75-4440-b236-87e77090f019" />
 
 There are many applications for the PID controller, but it's used most often in regulation. For example, the current goal for my PID is to simply regulate water temperature using a probe and heating rod.
 
@@ -18,5 +18,10 @@ Your position will approach the goal asymptotically until you get within 0.1 met
 So lets talk a little bit more of P, I, and D.
 
 ## Proportional Gain, K<sub>p</sub>
-Propotional gain was exemplified just before this in the walking example. Its a good way to correct your behavior as you approach the target. However, there are many ways for this to go wrong. Imagine that instead of walking, you're climbing, and gain * error sets the force you climb with. Obviously, you will stop dead in your tracks if the force you move up with ever equals the force of gravity, or your weight. This is called steady state error, and it will result in you never making it to the target. Also, think about it for a heating apparatus: if a certain amount of applied voltage corresponds to a certain amount of heat loss per minute, if the rate of heat emmission by the heated system ever becomes equal, you'll be screwed. Whoops!
+Propotional gain was exemplified just before this in the walking example. Its a good way to correct your behavior as you approach the target. However, there are many ways for this to go wrong. Imagine that instead of walking, you're climbing, and gain * error sets the force you climb with. Obviously, you will stop dead in your tracks if the force you move up with ever equals the force of gravity, or your weight. This is called steady state error, and it will result in you never making it to the target. Also, think about it for a heating apparatus: if a certain amount of applied voltage corresponds to a certain amount of heat loss per minute and the rate of heat emmission by the heated system ever becomes equal, you'll be screwed. Whoops!
 
+Proportional gain cannot account for steady state error, or mitigate oscillations. It's the principal component of gain, and extremely influential in the PID. Play around with it using my python code for a basic PID, it'll really shock you how much it governs the system! Try to see if you can get it to reach a steady state (hint: add a term of pushback against proportional gain!)
+
+## Integral Gain, K<sub>i</sub>
+<img align="right" width="427" height="331" alt="image" src="https://github.com/user-attachments/assets/0700ab01-e4ba-4939-b623-8ebd87378aea" />
+Integral gain stockpiles error and provides a proportional signal to the integral over the time. Seems simple, right? This is a great solution to the steady state error connundrum, as persistant, constant error ultimately results in the increase of the provided signal, preventing stability anywhere other than the target. An appropriate integral gain coefficient will make a clean descent/ascent to the target, but one too large will result in "integral windup" which is this fun oscillating value over to the right. The integral and proportional terms should not exist without one another, as they cover eachothers' bases very well.
