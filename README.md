@@ -16,6 +16,11 @@ So, how do you proceed? Well, the cop gives you a watch that tells you your posi
 Your position will approach the goal asymptotically until you get within 0.1 meters. The cop is stunned, but daps you up for your incredible math abilities. Thankfully for you, you simple cannot walk fast enough to blow past your target. However, if it *were* possible to select a gain of, say, 1.9, your graph would look like 
 <img width="1281" height="993" alt="image" src="https://github.com/user-attachments/assets/c936f86c-3ab7-478c-8687-eae24ce65864" />
 So lets talk a little bit more of P, I, and D.
+Note that in this example, you technically need that tolerance the cop gave, otherwise you never will really arrive at the destination.
+
+<img width="1394" height="1184" alt="image" src="https://github.com/user-attachments/assets/2d6731d5-3c0f-42cf-bb43-12e4e233acfe" />
+
+
 
 ## Proportional Gain, K<sub>p</sub>
 Propotional gain was exemplified just before this in the walking example. Its a good way to correct your behavior as you approach the target. However, there are many ways for this to go wrong. Imagine that instead of walking, you're climbing, and gain * error sets the force you climb with. Obviously, you will stop dead in your tracks if the force you move up with ever equals the force of gravity, or your weight. This is called steady state error, and it will result in you never making it to the target. Also, think about it for a heating apparatus: if a certain amount of applied voltage corresponds to a certain amount of heat loss per minute and the rate of heat emmission by the heated system ever becomes equal, you'll be screwed. Whoops!
