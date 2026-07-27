@@ -18,6 +18,14 @@ epsilon = 0.01  # threshold for "close enough" to target
 arduino = serial.Serial(port='/dev/tty.usbmodem1101', baudrate=9600, timeout=1)
 
 integral = 0.0
+max_step = 0.1  # max change in signal per control loop iteration
+prev_signal = 0.0
+
+def rateLimited(signal, prev_signal, max_step):
+    delta = signal - prev_signal
+    if abs(delta) > max_step:
+        signal = prev_signal + max_step * np.sign(delta)
+    return signal
 
 def sendCommand(actionID, value):
     """Send a command to the Arduino."""
@@ -33,50 +41,39 @@ def readProbe():
 
 def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
     """
-    Returns a heater signal in [0, 1].
-
-    curr_error = target - current_temp
-      curr_error > 0  -> too cold, need heat
-      curr_error <= 0 -> at/above target, no heat (heater can't cool!)
-
-    Only the positive side of the error uses the bell-curve response;
-    negative error (overshoot) is forced to 0 output.
-
+    Returns a signal in [-1, 1].
+      output > 0 -> heat
+      output < 0 -> cool
     Anti-windup: the integral term is only allowed to grow/shrink if doing
     so wouldn't just be "pushed further into" an already-saturated output.
     """
     global integral
-
     p_term = curr_error * kp
-
-    # Tentatively update the integral -- don't commit yet.
     potential_integral = integral + curr_error * dt
     i_term_tentative = potential_integral * ki
-
     derivative = (curr_error - prev_error) / dt
     d_term = derivative * kd
-
     total_tentative = p_term + i_term_tentative + d_term
 
-    raw_output = (total_tentative/abs(total_tentative)) - np.exp(-(total_tentative ** 2) / (2 * width ** 2))
+    def bell_output(total):
+        if total == 0:
+            return 0.0
+        return np.sign(total) * (1 - np.exp(-(total ** 2) / (2 * width ** 2)))
 
-    # Is the *actual* output saturated at a bound?
+    raw_output = bell_output(total_tentative)
+
     is_saturated = raw_output - epsilon <= out_min or raw_output + epsilon >= out_max
-    # Is the error still pushing further into that same saturated bound?
     pushing_further = (curr_error > 0 and raw_output + epsilon >= out_max) or \
                        (curr_error < 0 and raw_output - epsilon <= out_min)
 
-    # Only update the integral if doing so wouldn't just be "pushed further into" an already-saturated output.
     if not (is_saturated and pushing_further):
         integral = potential_integral
 
-    # Recompute with whatever integral we actually committed to.
     i_term = integral * ki
     total = p_term + i_term + d_term
+    output = bell_output(total)
 
-    output = 1 - np.exp(-(total ** 2) / (2 * width ** 2))
     return max(out_min, min(output, out_max))
-
 
 def sendSignal(signal):
     """Send the heat/cool command, then the normalized (-1 to 1) scalar.
@@ -96,6 +93,8 @@ while True:
     error = target_temp - current_temp
 
     signal = normalizedSignalPID(k_p, k_i, k_d, error, prev_error, width)
+    signal = rateLimited(signal, prev_signal, max_step)
+    prev_signal = signal
     sendSignal(signal)
 
     time.sleep(dt)
