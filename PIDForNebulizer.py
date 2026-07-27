@@ -12,13 +12,15 @@ import numpy as np
 
 k_p, k_i, k_d = 1.0, 0.0, 0.0   # tune these
 dt = 1.0
-out_min, out_max = 0.0, 1.0
+out_min, out_max = -1.0, 1.0
+epsilon = 0.01  # threshold for "close enough" to target
 
 arduino = serial.Serial(port='/dev/tty.usbmodem1101', baudrate=9600, timeout=1)
 
 # Commands must end in '\n' -- Arduino reads with readStringUntil('\n')
 PROBE_CMD = "probe\n"
 HEAT_CMD = "heat\n"
+COOLER_CMD = "cool\n"
 
 integral = 0.0
 
@@ -57,16 +59,13 @@ def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
 
     total_tentative = p_term + i_term_tentative + d_term
 
-    if total_tentative <= 0:
-        raw_output = 0.0
-    else:
-        raw_output = 1 - np.exp(-(total_tentative ** 2) / (2 * width ** 2))
+    raw_output = (total_tentative/abs(total_tentative)) - np.exp(-(total_tentative ** 2) / (2 * width ** 2))
 
     # Is the *actual* output saturated at a bound?
-    is_saturated = raw_output <= out_min or raw_output >= out_max
+    is_saturated = raw_output - epsilon <= out_min or raw_output + epsilon >= out_max
     # Is the error still pushing further into that same saturated bound?
-    pushing_further = (curr_error > 0 and raw_output >= out_max) or \
-                       (curr_error < 0 and raw_output <= out_min)
+    pushing_further = (curr_error > 0 and raw_output + epsilon >= out_max) or \
+                       (curr_error < 0 and raw_output - epsilon <= out_min)
 
     if not (is_saturated and pushing_further):
         integral = potential_integral
@@ -75,9 +74,6 @@ def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
     i_term = integral * ki
     total = p_term + i_term + d_term
 
-    if total <= 0:
-        return 0.0
-
     output = 1 - np.exp(-(total ** 2) / (2 * width ** 2))
     return max(out_min, min(output, out_max))
 
@@ -85,6 +81,9 @@ def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
 def sendSignal(signal):
     """Send the heat command, then the normalized (0-1) scalar.
     Arduino's setWattage() does the *255 PWM conversion itself."""
+    if signal < 0:
+        arduino.write(COOLER_CMD.encode('utf-8'))
+    if signal > 0:
     arduino.write(HEAT_CMD.encode('utf-8'))
     arduino.write((str(signal) + "\n").encode('utf-8'))
 
