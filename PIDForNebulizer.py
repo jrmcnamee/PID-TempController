@@ -17,17 +17,16 @@ epsilon = 0.01  # threshold for "close enough" to target
 
 arduino = serial.Serial(port='/dev/tty.usbmodem1101', baudrate=9600, timeout=1)
 
-# Commands must end in '\n' -- Arduino reads with readStringUntil('\n')
-PROBE_CMD = "probe\n"
-HEAT_CMD = "heat\n"
-COOLER_CMD = "cool\n"
-
 integral = 0.0
 
+def sendCommand(actionID, value):
+    """Send a command to the Arduino."""
+    delivery = f"{actionID}:{value}\n"
+    arduino.write(delivery.encode('utf-8'))
 
 def readProbe():
     """Ask Arduino for current temperature reading."""
-    arduino.write(PROBE_CMD.encode('utf-8'))
+    sendCommand(1, 0)  # 1 = probe command, value is ignored
     response_bytes = arduino.readline()
     return float(response_bytes.decode('utf-8'))
 
@@ -67,6 +66,7 @@ def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
     pushing_further = (curr_error > 0 and raw_output + epsilon >= out_max) or \
                        (curr_error < 0 and raw_output - epsilon <= out_min)
 
+    # Only update the integral if doing so wouldn't just be "pushed further into" an already-saturated output.
     if not (is_saturated and pushing_further):
         integral = potential_integral
 
@@ -79,13 +79,9 @@ def normalizedSignalPID(kp, ki, kd, curr_error, prev_error, width):
 
 
 def sendSignal(signal):
-    """Send the heat command, then the normalized (0-1) scalar.
+    """Send the heat/cool command, then the normalized (-1 to 1) scalar.
     Arduino's setWattage() does the *255 PWM conversion itself."""
-    if signal < 0:
-        arduino.write(COOLER_CMD.encode('utf-8'))
-    if signal > 0:
-    arduino.write(HEAT_CMD.encode('utf-8'))
-    arduino.write((str(signal) + "\n").encode('utf-8'))
+    sendCommand(2, signal)  # 2 = heat/cool command, value is normalized signal
 
 
 target_temp = float(input("enter temperature: "))
