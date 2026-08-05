@@ -1,6 +1,9 @@
-#include <SPI.h>
 #include <Arduino.h>
+#include <SPI.h>
 #include "Adafruit_MAX31855.h"
+
+unsigned long lastCommandTime = 0;
+const unsigned long TIMEOUT_MS = 2000;
 
 const int heaterPin = 10;
 const int coolerPin = 9;
@@ -30,11 +33,12 @@ void checkSerial() {
 void executeAction(int action, int value){
   switch(action){
     case 1:
-      temperatureReading();
+      Serial.println(temperatureReading());
       break;
     
     case 2:
       setWattage(value);
+      break;
       
   }
 
@@ -64,12 +68,16 @@ double temperatureReading() {
 // sets the wattage by multiplying the computer signal by the max PWM value
 void setWattage(float scalar) {
   if (scalar < 0){
-    analogWrite(coolerPin, (int)(255*scalar))
-    analogWrite(heaterPin, 0)
+    analogWrite(coolerPin, (int)(-scalar));
+    analogWrite(heaterPin, 0);
   }
   else if (scalar > 0){
-    analogWrite(heaterPin, (int)(255*scalar));
-    analogWrite(coolerPin, 0)
+    analogWrite(heaterPin, (int)(scalar));
+    analogWrite(coolerPin, 0);
+  }
+  else{
+    analogWrite(coolerPin, 0);
+    analogWrite(heaterPin, 0);
   }
 }
 
@@ -83,9 +91,11 @@ void setup() {
 }
 
 void loop() {
-  // check serial function to set a signal, if standby just keep repeating the loop
-  while (Serial.available() == 0) {
-    ;
+  if (Serial.available() > 0) {
+    checkSerial();
+    lastCommandTime = millis();
+  } else if (millis() - lastCommandTime > TIMEOUT_MS) {
+    analogWrite(heaterPin, 0);
+    analogWrite(coolerPin, 0);
   }
-  checkSerial();
 }
