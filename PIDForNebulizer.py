@@ -10,7 +10,7 @@ import serial
 import time
 import numpy as np
 
-import communicationTools
+import communicationTools as comm
     
 class controllerPID:
     def __init__ (self, PORT, heater_kp, heater_ki, heater_kd, cooler_kp, cooler_ki, cooler_kd, tau, heater_bool = True, cooler_bool = False):
@@ -21,6 +21,9 @@ class controllerPID:
             self.MAX = 255
         else:
             self.MAX = 0
+            self.heater_kp = 0
+            self.heater_ki = 0
+            self.heater_kd = 0
             
         if cooler_bool:
             self.cooler_kp = cooler_kp
@@ -29,46 +32,63 @@ class controllerPID:
             self.MIN = -255
         else:
             self.MIN = 0
+            self.cooler_kp = 0
+            self.cooler_ki = 0
+            self.cooler_kd = 0
             
         self.integral = 0
         self.port = PORT
         self.delay = tau
         self.RUN = True
         
-    def controllerRun (target_temp):
+    def controllerRun(self, target_temp):
         self.integral = 0
         arduino = serial.Serial(port=self.port, baudrate=9600, timeout=1)
-        error = target_temp - readProbe(arduino)
-
+        time.sleep(2)
+    
+        error = None
+        while error is None:          # keep retrying the first read until it's valid
+            temp = comm.readProbe(arduino)
+            if temp is not None:
+                error = target_temp - temp
+    
         while self.RUN == True:
             prev_error = error
-            error = target_temp - readProbe(arduino)
-    `       
+            temp = comm.readProbe(arduino)
+            print(temp)
+    
+            if temp is None:
+                # bad reading — skip this cycle, don't update PID state or send a signal
+                time.sleep(self.delay)
+                continue
+    
+            error = target_temp - temp
             signal = self.signalCalculator(error, prev_error)
-            sendSignal(arduino, signal)
+            comm.sendSignal(arduino, signal)
+            time.sleep(self.delay)
 
         
-    def closeController():
+    def closeController(self):
         self.RUN = False
         return
 
-    def signalCalculator(error, prev_error):
+    def signalCalculator(self, error, prev_error):
         
         if error < 0: 
             p_term = self.cooler_kp * error
-        else if error >= 0:
+        elif error >= 0:
             p_term = self.heater_kp * error
 
         potential_integral = self.integral + self.delay * error
         if potential_integral < 0: 
             i_term = self.cooler_ki * potential_integral
-        else if potential_integral >= 0:
+        elif potential_integral >= 0:
             i_term = self.heater_ki * potential_integral
 
         derivative = (error-prev_error) / self.delay
         if error < 0: 
             d_term = self.cooler_kd * derivative
-        else if error >= 0:
+        elif error >= 0:
             d_term = self.heater_kd * derivative
 
         raw_output = p_term + i_term + d_term
@@ -80,8 +100,17 @@ class controllerPID:
         if not (is_saturated and pushing_further):
             self.integral = potential_integral
 
-        i_term = k_i * self.integral
+        if self.integral < 0: 
+            i_term = self.cooler_ki * self.integral
+        elif self.integral >= 0:
+            i_term = self.heater_ki * self.integral
+            
         output = p_term + i_term + d_term
-        return output
+        
+        if output<2:
+            output=0
+            
+        print(max(self.MIN, min(output, self.MAX)))
+        return max(self.MIN, min(output, self.MAX))
 
     
