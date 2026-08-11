@@ -13,7 +13,7 @@ import numpy as np
 import communicationTools as comm ##functions in communicationTools.py are used for serial communication with the Arduino. These are the functions readProbe and sendSignal.
     
 class controllerPID:
-    def __init__ (self, PORT, heater_kp, heater_ki, heater_kd, cooler_kp, cooler_ki, cooler_kd, tau, heater_bool = True, cooler_bool = False):
+    def __init__ (self, PORT1, PORT2, heater_kp, heater_ki, heater_kd, cooler_kp, cooler_ki, cooler_kd, tau, heater_bool = True, cooler_bool = False):
         """
         Initializes the PID controller with the given parameters. 
         If heater_bool is True, the controller will use the provided heater PID parameters.
@@ -43,7 +43,8 @@ class controllerPID:
             self.cooler_kd = 0
             
         self.integral = 0
-        self.port = PORT
+        self.port1 = PORT1
+        self.port2 = PORT2
         self.delay = tau
         self.RUN = True
         
@@ -53,18 +54,19 @@ class controllerPID:
         Call this function to start the controller. It will continuously read the temperature from the probe, calculate the PID signal, and send it to the Arduino until the controller is stopped.
         """
         self.integral = 0
-        arduino = serial.Serial(port=self.port, baudrate=9600, timeout=1) ##this function opens the serial port to communicate with the Arduino. The baudrate and timeout are set to match the Arduino's settings.
+        arduino1 = serial.Serial(port=self.port1, baudrate=9600, timeout=1) ##this function opens the serial port to communicate with the Arduino. The baudrate and timeout are set to match the Arduino's settings.
+        arduino2 = serial.Serial(port=self.port2, baudrate=9600, timeout=1)
         time.sleep(2)
     
         error = None
         while error is None:          # keep retrying the first read until it's valid
-            temp = comm.readProbe(arduino)
+            temp = comm.readProbe(arduino2)
             if temp is not None:
                 error = target_temp - temp
     
         while self.RUN == True:
             prev_error = error
-            temp = comm.readProbe(arduino)
+            temp = comm.readProbe(arduino2)
             print(temp)
     
             if temp is None:
@@ -74,7 +76,7 @@ class controllerPID:
     
             error = target_temp - temp
             signal = self.signalCalculator(error, prev_error)
-            comm.sendSignal(arduino, signal)
+            comm.sendSignal(arduino1, signal)
             time.sleep(self.delay)
 
         
